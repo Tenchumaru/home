@@ -37,9 +37,5 @@ nosetests.xml
 *.swp
 *~
 
-# the rest of my home
-[A-Zac-km-rt-z]*
-.*
-bin/lin*
-bin/svm-*
-src/l*
+# exclude everything; I'll force it
+*
