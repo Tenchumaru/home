@@ -1,0 +1,35 @@
+#!/bin/sh
+usage() {
+	echo "runs command lines fed from input concurrently up to limit" >&2
+	echo "usage: $0 limit [input_commands_file]" >&2
+	exit 2
+}
+[ $# -ge 1 -a $# -le 2 ] || usage
+Limit=$1
+InputCommandsFile=$2
+clean_up() {
+	consume 0
+	rm -fr $T
+	exit 0
+}
+consume() {
+	while [ `ls -1 $T | wc -l` -gt $1 ]
+	do
+		sleep .5
+	done
+}
+produce() {
+	/bin/sh $1
+	rm $1
+}
+T=`mktemp --directory`
+trap clean_up INT TERM
+N=0
+cat $InputCommandsFile | while read L
+do
+	N=`expr $N + 1`
+	echo "$L" > $T/$N
+	produce $T/$N &
+	consume $Limit
+done
+clean_up

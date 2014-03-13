@@ -1,0 +1,14 @@
+#!/bin/sh
+M=`find /media -maxdepth 1 -type d | tail -n +2 | head -1`
+if [ ! -d "$M" ]
+then
+	echo "no media"
+	exit 0
+fi
+for d in bin src lib
+do
+	[ -d "$M/u$d" ] || mkdir "$M/u$d"
+	cp -P -u -v $d/* "$M/u$d" 2>&1 | grep -v "omitting directory"
+done
+[ -d "$M/udoc" ] || mkdir "$M/udoc"
+cp -P -u -v Documents/* "$M/udoc" 2>&1 | grep -v "omitting directory"
