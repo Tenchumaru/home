@@ -23,6 +23,7 @@ sed "s/^ /	/" > .bash_aliases <<- EOF
 	alias b='cd ..'
 	alias j=jobs
 	alias h=history
+	alias gh='history | grep'
 	alias ls='ls --color=auto -F'
 	alias ll='ls -l'
 	alias la='ls -A'
