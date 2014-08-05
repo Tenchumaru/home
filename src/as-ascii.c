@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#define arg_is_dash(n) (argv[n][0] == '-' && !argv[n][1])
+
 static int usage(char const* prog)
 {
 	fprintf(stderr, "usage: %s [-h] [-u] [input_file [output_file]]\n", prog);
@@ -12,7 +14,7 @@ int main(int argc, char* argv[])
 {
 	char const* prog= argv[0];
 	bool strip_cr= false;
-	while(argc > 1 && argv[1][0] == '-')
+	while(argc > 1 && argv[1][0] == '-' && argv[1][1])
 	{
 		switch(argv[1][1])
 		{
@@ -30,7 +32,7 @@ int main(int argc, char* argv[])
 		return usage(prog);
 	FILE* fin= stdin;
 	FILE* fout= stdout;
-	if(argc > 1)
+	if(argc > 1 && !arg_is_dash(1))
 	{
 		fin= fopen(argv[1], "r");
 		if(!fin)
@@ -38,14 +40,14 @@ int main(int argc, char* argv[])
 			fprintf(stderr, "%s: cannot open %s for reading\n", prog, argv[1]);
 			return 1;
 		}
-		if(argc > 2)
+	}
+	if(argc > 2 && !arg_is_dash(2))
+	{
+		fout= fopen(argv[2], "w");
+		if(!fout)
 		{
-			fout= fopen(argv[2], "w");
-			if(!fout)
-			{
-				fprintf(stderr, "%s: cannot open %s for writing\n", prog, argv[2]);
-				return 1;
-			}
+			fprintf(stderr, "%s: cannot open %s for writing\n", prog, argv[2]);
+			return 1;
 		}
 	}
 	int ch;
