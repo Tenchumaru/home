@@ -2,7 +2,7 @@
 
 def parse(line, delimiter):
   line = line.strip()
-  if '"' in line:
+  if '"' not in delimiter and '"' in line:
     in_quotes = False
     parts = []
     part = ""
