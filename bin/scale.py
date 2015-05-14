@@ -17,7 +17,6 @@ class MinMax:
     else:
       self.upper_bound= 1.
       self.lower_bound= -1. if using_negative_one else .0
-      self.middle= (self.upper_bound - self.lower_bound) / 2.
       self.using_standard_deviation= using_standard_deviation
       self.wants_clamping= False
       if using_standard_deviation:
@@ -25,6 +24,7 @@ class MinMax:
         self.a= self.q= .0
       else:
         self.minimum= self.maximum= nan
+    self.middle= (self.upper_bound - self.lower_bound) / 2.
 
   def __str__(self):
     if self.using_standard_deviation and self.k != 0:
