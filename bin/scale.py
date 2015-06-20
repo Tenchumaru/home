@@ -4,9 +4,18 @@ import argparse
 import sys
 import tempfile
 from collections import defaultdict
-from math import isnan, sqrt
+from math import erf, isnan, sqrt
 
 nan= float("NaN")
+
+def as_value(s):
+  if s[0] == 'n':
+    v= -float(s[1:])
+  elif s[0] == 'p':
+    v= float(s[1:])
+  else:
+    raise ValueError("unexpected value " + s)
+  return .5 + .5 * erf(v / sqrt(2.))
 
 class MinMax:
   def __init__(self, using_negative_one, using_standard_deviation):
@@ -24,7 +33,7 @@ class MinMax:
         self.a= self.q= .0
       else:
         self.minimum= self.maximum= nan
-    self.middle= (self.upper_bound - self.lower_bound) / 2.
+    self.middle= (self.upper_bound + self.lower_bound) / 2.
 
   def __str__(self):
     if self.using_standard_deviation and self.k != 0:
@@ -50,7 +59,10 @@ class MinMax:
       if value == '' or value == 'None':
         return
       else:
-        raise ex
+        # If it's convertible, ignore it.
+        as_value(value)
+        return
+      raise
     if self.using_standard_deviation:
       self.k += 1
       diff= value - self.a
@@ -70,7 +82,10 @@ class MinMax:
       if value == '' or value == 'None':
         result= self.middle
       else:
-        raise ex
+        result= as_value(value)
+        if self.middle == .0:
+          # Negative one is the lower bound.
+          result= 2. * result - 1.
     return "%g" % round(result + 1e-9, 5) # Prevent negative zero.
 
 class MinMaxIgnored:
