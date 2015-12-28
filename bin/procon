@@ -2,10 +2,18 @@
 usage() {
 	echo "runs command lines fed from input concurrently up to limit" >&2
 	echo "usage: $0 limit [input_commands_file]" >&2
+	echo >&2
+	echo "If limit is 0, this script will use one more than the number of" >&2
+	echo "processors reported in /proc/cpuinfo." >&2
 	exit 2
 }
 [ $# -ge 1 -a $# -le 2 ] || usage
 Limit=$1
+if [ $Limit -lt 1 ]
+then
+	Limit=`grep processor /proc/cpuinfo | wc -l`
+	Limit=`expr $Limit + 1`
+fi
 InputCommandsFile=$2
 clean_up() {
 	consume 0
