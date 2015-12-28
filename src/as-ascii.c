@@ -6,20 +6,21 @@
 
 static int usage(char const* prog)
 {
-	fprintf(stderr, "usage: %s [-h] [-b] [-p] [-r ch] [-u] [input_file [output_file]]\n", prog);
+	fprintf(stderr, "usage: %s [-h] [-b] [-p] [-r ch] [-u] [-z] [input_file [output_file]]\n", prog);
 	fputs("use -b to remove BOM from input\n", stderr);
 	fputs("use -p to ensure all characters are printable\n", stderr);
 	fputs("use -r to specify a replacement character\n", stderr);
 	fputs("use -u to strip CRs from input\n", stderr);
+	fputs("use -z to strip DOS EOF marker from input\n", stderr);
 	return 2;
 }
 
 static int replacement_ch= EOF;
-static bool strip_cr= false, wants_printable= false;
+static bool strip_dos_eof= false, strip_cr= false, wants_printable= false;
 
 static void print(int ch, FILE* fout)
 {
-	if(!strip_cr || ch != '\r')
+	if((!strip_dos_eof || ch != 26) && (!strip_cr || ch != '\r'))
 	{
 		if(replacement_ch == EOF)
 			ch &= 0x7f;
@@ -60,6 +61,9 @@ int main(int argc, char* argv[])
 			break;
 		case 'u':
 			strip_cr= true;
+			break;
+		case 'z':
+			strip_dos_eof= true;
 			break;
 		default:
 			return usage(prog);
