@@ -98,7 +98,8 @@ static void parse_columns(char const* optarg, bool is_one_based) {
 			break;
 		}
 	} while(ch);
-	column_vector.resize(*std::max_element(column_set.begin(), column_set.end()));
+	auto n= *std::max_element(column_set.begin(), column_set.end());
+	column_vector.resize(is_one_based ? n : n + 1);
 	for(auto& i : column_set) {
 		column_vector[is_one_based ? i - 1 : i] = true;
 	}
