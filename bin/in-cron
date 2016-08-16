@@ -3,9 +3,10 @@ LogFile=$HOME/log.txt
 usage() {
 	echo "Run a command as a cron job."
 	echo
-	echo "usage: `readlink -f $0` [-l log_file] [-x] command [args [...]]"
+	echo "usage: `readlink -f $0` [-l log_file] [-a] [-x] command [args [...]]"
 	echo
 	echo "Use -l to specify the log file (default $LogFile)."
+	echo "Use -a to append to the log instead of overwriting it."
 	echo "Use -x to use the extended log format."
 	echo "Use -h to print this help."
 	echo
@@ -25,10 +26,11 @@ usage() {
 
 # Parse and validate the command line arguments.
 WantsExtended=false
-while getopts l:xh o
+while getopts l:axh o
 do
 	case $o in
 		l)    LogFile=$OPTARG;;
+		a)    AppendArg="-a";;
 		x)    WantsExtended=true;;
 		h|\?) usage;;
 	esac
@@ -58,7 +60,7 @@ fi
 if $WantsExtended; then
 	$Command "$@" 2>&1 | while read L; do
 		echo $L | sed "s/^/`date '+%Y-%m-%d %H:%M:%S'` /"
-	done > $LogFile
+	done | tee $AppendArg $LogFile > /dev/null
 else
-	$Command "$@" > $LogFile 2>&1
+	$Command "$@" | tee $AppendArg $LogFile > /dev/null
 fi
