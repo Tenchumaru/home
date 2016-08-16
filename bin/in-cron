@@ -1,0 +1,53 @@
+#!/bin/sh
+LogFile=$HOME/log.txt
+usage() {
+	echo "Run a command as a cron job."
+	echo
+	echo "usage: `readlink -f $0` [-l log_file] command [args [...]]"
+	echo
+	echo "Use -l to specify the log file (default $LogFile)."
+	echo "Use -h to print this help."
+	echo
+	echo '"command" must be an executable argument.  Specify a command path'
+	echo 'either absolute, relative to $HOME, or in $PATH.  If specifying an'
+	echo "absolute or relative command, it is executed in its directory so"
+	echo "command arguments that are paths must be either absolute or relative"
+	echo "to the command.  If the command's path is implicit (i.e., the command"
+	echo 'is in $PATH), it is executed in $HOME so command arguments that are'
+	echo 'paths must be either absolute or relative to $HOME.'
+	exit 2
+}
+
+# Configure the environment.
+[ -d $HOME/bin ] && export PATH="$HOME/bin:$PATH"
+[ -d $HOME/lib ] && export PYTHONPATH=$HOME/lib
+
+# Parse and validate the command line arguments.
+while getopts l:h o
+do
+	case $o in
+		l)    LogFile=$OPTARG;;
+		h|\?) usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+[ $# -ge 1 ] || usage
+check -d `dirname $LogFile` || exit 1
+Command=$1
+if echo "$Command" | grep -Fq /; then
+	check -x $Command || exit 1
+else
+	which $Command > /dev/null || exit 1
+fi
+shift 1
+
+# Execute the command.
+if echo "$Command" | grep -Fq /; then
+	# The command's path is absolute or relative.
+	cd `dirname $Command`
+	./`basename $Command` "$@" > $LogFile 2>&1
+else
+	# The command's path is implicit.
+	cd $HOME
+	$Command "$@" > $LogFile 2>&1
+fi
