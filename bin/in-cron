@@ -3,9 +3,10 @@ LogFile=$HOME/log.txt
 usage() {
 	echo "Run a command as a cron job."
 	echo
-	echo "usage: `readlink -f $0` [-l log_file] command [args [...]]"
+	echo "usage: `readlink -f $0` [-l log_file] [-x] command [args [...]]"
 	echo
 	echo "Use -l to specify the log file (default $LogFile)."
+	echo "Use -x to use the extended log format."
 	echo "Use -h to print this help."
 	echo
 	echo '"command" must be an executable argument.  Specify a command path'
@@ -23,10 +24,12 @@ usage() {
 [ -d $HOME/lib ] && export PYTHONPATH=$HOME/lib
 
 # Parse and validate the command line arguments.
-while getopts l:h o
+WantsExtended=false
+while getopts l:xh o
 do
 	case $o in
 		l)    LogFile=$OPTARG;;
+		x)    WantsExtended=true;;
 		h|\?) usage;;
 	esac
 done
@@ -41,13 +44,21 @@ else
 fi
 shift 1
 
-# Execute the command.
+# Switch to the appropriate directory.
 if echo "$Command" | grep -Fq /; then
 	# The command's path is absolute or relative.
 	cd `dirname $Command`
-	./`basename $Command` "$@" > $LogFile 2>&1
+	Command=./`basename $Command`
 else
 	# The command's path is implicit.
 	cd $HOME
+fi
+
+# Execute the command.
+if $WantsExtended; then
+	$Command "$@" 2>&1 | while read L; do
+		echo $L | sed "s/^/`date '+%Y-%m-%d %H:%M:%S'` /"
+	done > $LogFile
+else
 	$Command "$@" > $LogFile 2>&1
 fi
