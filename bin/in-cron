@@ -3,9 +3,11 @@ LogFile=$HOME/log.txt
 usage() {
 	echo "Run a command as a cron job."
 	echo
-	echo "usage: `readlink -f $0` [-l log_file] [-a] [-x] command [args [...]]"
+	echo "usage: `readlink -f $0` [-l log_file] [-p additional_path]"
+	echo "\t[-a] [-x] command [args [...]]"
 	echo
 	echo "Use -l to specify the log file (default $LogFile)."
+	echo "Use -p to specify additional directories for PATH."
 	echo "Use -a to append to the log instead of overwriting it."
 	echo "Use -x to use the extended log format."
 	echo "Use -h to print this help."
@@ -17,19 +19,25 @@ usage() {
 	echo "to the command.  If the command's path is implicit (i.e., the command"
 	echo 'is in $PATH), it is executed in $HOME so command arguments that are'
 	echo 'paths must be either absolute or relative to $HOME.'
+	echo
+	echo "Additional PATH directories are prepended to those cron provides."
+	echo "Specify multiple additional directories by either specifying"
+	echo "multiple -p options or delimiting them with ':' in a single -p"
+	echo 'option.  Note that $HOME/bin is automatically prepended.'
 	exit 2
 }
 
 # Configure the environment.
-[ -d $HOME/bin ] && export PATH="$HOME/bin:$PATH"
-[ -d $HOME/lib ] && export PYTHONPATH=$HOME/lib
+[ -d $HOME/bin ] && PATH="$HOME/bin:$PATH"
+[ -d $HOME/lib ] && PYTHONPATH=$HOME/lib
 
 # Parse and validate the command line arguments.
 WantsExtended=false
-while getopts l:axh o
+while getopts l:p:axh o
 do
 	case $o in
 		l)    LogFile=$OPTARG;;
+		p)    PATH="$OPTARG:$PATH";;
 		a)    AppendArg="-a";;
 		x)    WantsExtended=true;;
 		h|\?) usage;;
@@ -57,10 +65,12 @@ else
 fi
 
 # Execute the command.
+export PATH
+export PYTHONPATH
 if $WantsExtended; then
 	$Command "$@" 2>&1 | while read L; do
 		echo $L | sed "s/^/`date '+%Y-%m-%d %H:%M:%S'` /"
 	done | tee $AppendArg $LogFile > /dev/null
 else
-	$Command "$@" | tee $AppendArg $LogFile > /dev/null
+	$Command "$@" 2>&1 | tee $AppendArg $LogFile > /dev/null
 fi
