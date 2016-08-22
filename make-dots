@@ -64,14 +64,20 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	export PYTHONPATH=~/lib
 EOF
 cat > .vimrc <<- EOF
-	map  :set nu
-	map  :set nonu
-	map gh :w:!python3 % --help
-	map gj :w:!./%
-	map gp :w:!python3 % --test
+	map <C-n> :set nu<CR>
+	map <C-p> :set nonu<CR>
+	map gc :wa<CR>:!g++ -std=c++11 % && ./a.out
+	map gh :wa<CR>:!python3 % --help<CR>
+	map gj :wa<CR>:!./%<CR>
+	map gl :ls<CR>
+	map gp :wa<CR>:!python3 % --test<CR>
+	map gq :wa<CR>:!psql -f %<CR>
+	map gw :wa<CR>
 	set ai
+	set background=dark
 	set sw=4
 	set ts=4
-	filetype plugin indent on
-	autocmd FileType python setlocal shiftwidth=2 softtabstop=2 expandtab
+	syntax on
+	filetype indent plugin on
+	autocmd FileType python setlocal expandtab softtabstop=2 sw=2 ts=2
 EOF
