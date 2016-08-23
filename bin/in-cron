@@ -1,12 +1,11 @@
 #!/bin/sh
-LogFile=$HOME/log.txt
 usage() {
 	echo "Run a command as a cron job."
 	echo
 	echo "usage: `readlink -f $0` [-l log_file] [-p additional_path]"
 	echo "\t[-a] [-x] command [args [...]]"
 	echo
-	echo "Use -l to specify the log file (default $LogFile)."
+	echo "Use -l to specify a log file."
 	echo "Use -p to specify additional directories for PATH."
 	echo "Use -a to append to the log instead of overwriting it."
 	echo "Use -x to use the extended log format."
@@ -45,7 +44,7 @@ do
 done
 shift `expr $OPTIND - 1`
 [ $# -ge 1 ] || usage
-check -d `dirname $LogFile` || exit 1
+[ -z "$LogFile" ] || check -d `dirname $LogFile` || exit 1
 Command=$1
 if echo "$Command" | grep -Fq /; then
 	check -x $Command || exit 1
@@ -70,7 +69,7 @@ export PYTHONPATH
 if $WantsExtended; then
 	$Command "$@" 2>&1 | while read L; do
 		echo $L | sed "s/^/`date '+%Y-%m-%d %H:%M:%S'` /"
-	done | tee $AppendArg $LogFile > /dev/null
+	done
 else
-	$Command "$@" 2>&1 | tee $AppendArg $LogFile > /dev/null
-fi
+	$Command "$@" 2>&1
+fi | { [ -n "$LogFile" ] && tee $AppendArg $LogFile || cat; }
