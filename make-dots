@@ -60,6 +60,7 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	alias lal='la -l'
 	alias gcm='git commit -m'
 	alias gd='git diff'
+	alias gl='git log --name-status'
 	alias gs='git status -s'
 	export PYTHONPATH=~/lib
 EOF
