@@ -1,20 +1,31 @@
 #!/bin/sh
+[ -x /bin/bash ] && S=/bin/bash || S=/bin/sh
 usage() {
-	echo "runs command lines fed from input concurrently up to limit" >&2
-	echo "usage: $0 limit [input_commands_file]" >&2
-	echo >&2
-	echo "If limit is 0, this script will use one more than the number of" >&2
-	echo "processors reported in /proc/cpuinfo." >&2
+	echo "Run command lines fed from input concurrently up to limit."
+	echo
+	echo "usage: $0 limit [-s shell] [input_commands_file]"
+	echo
+	echo "Use -s to specify a path to a shell (default $S)."
+	echo
+	echo "If the specified limit is less than one, this script will use the"
+	echo "number of processors reported in /proc/cpuinfo."
 	exit 2
 }
+
+# Collect and validate the command-line parameters.
+while getopts s:h o; do
+	case $o in
+		s)    S=$OPTARG;;
+		h|\?) usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
 [ $# -ge 1 -a $# -le 2 ] || usage
 Limit=$1
-if [ $Limit -lt 1 ]
-then
-	Limit=`grep processor /proc/cpuinfo | wc -l`
-	Limit=`expr $Limit + 1`
-fi
+[ $Limit -ge 1 ] || Limit=`grep processor /proc/cpuinfo | wc -l`
 InputCommandsFile=$2
+
+# Define the functions and create the temporary directory.
 clean_up() {
 	consume 0
 	rm -fr $T
@@ -27,11 +38,13 @@ consume() {
 	done
 }
 produce() {
-	/bin/sh $1
+	$S $1
 	rm $1
 }
 T=`mktemp --directory`
 trap clean_up INT TERM
+
+# Execute all commands in the input command file concurrently.
 N=0
 cat $InputCommandsFile | while read L
 do
