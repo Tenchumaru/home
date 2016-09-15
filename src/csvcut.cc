@@ -18,7 +18,7 @@ static char const* prog;
 static int usage() {
 	std::cerr << "print selected columns to standard output" << std::endl;
 	std::cerr << std::endl;
-	std::cerr << "usage: " << prog << " [-h] [-s] -(c|K) columns [input.csv]" << std::endl;
+	std::cerr << "usage: " << prog << " [-h] [-s] -(c|K) columns [input.csv] [...]" << std::endl;
 	std::cerr << std::endl;
 	std::cerr << "\t-s\tskip the header (i.e., the first line)" << std::endl;
 	std::cerr << "\t-c\tcomma-separated list of 1-based column ranges to print" << std::endl;
