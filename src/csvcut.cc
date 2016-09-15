@@ -1,4 +1,4 @@
-// g++ -std=c++11 -o ../bin/csvcut -O2 csvcut.cc
+// g++ -std=c++11 -o ../bin/csvcut -O3 csvcut.cc
 
 #include <algorithm>
 #include <fstream>
@@ -11,194 +11,201 @@
 #include <cstring>
 #include <unistd.h>
 
-static int usage(char const* prog) {
+using vector= std::vector<char const*>;
+
+static char const* prog;
+
+static int usage() {
 	std::cerr << "print selected columns to standard output" << std::endl;
 	std::cerr << std::endl;
-	std::cerr << "usage: " << prog << " [-h] -(c|K) columns [input.csv]" << std::endl;
+	std::cerr << "usage: " << prog << " [-h] [-s] -(c|K) columns [input.csv]" << std::endl;
 	std::cerr << std::endl;
+	std::cerr << "\t-s\tskip the header (i.e., the first line)" << std::endl;
 	std::cerr << "\t-c\tcomma-separated list of 1-based column ranges to print" << std::endl;
 	std::cerr << "\t-K\tcomma-separated list of 0-based column ranges to print" << std::endl;
 	return 2;
 }
 
-static size_t all_begin = std::numeric_limits<size_t>::max();
-static std::vector<int> column_vector;
+static vector as_parts(std::string& line) {
+	bool is_in_quote= false;
+	vector rv(1, &line[0]);
+	for(auto& ch: line) {
+		if(is_in_quote) {
+			if(ch == '"') {
+				is_in_quote= false;
+			}
+		} else if(ch == ',') {
+			ch= '\0';
+			rv.push_back(&ch + 1);
+		} else if(ch == '"') {
+			is_in_quote= true;
+		}
+	}
 
-static void parse_columns(char const* optarg, bool is_one_based) {
-	if(all_begin < std::numeric_limits<size_t>::max() || !column_vector.empty()) {
-		std::cerr << "provide column specification only once" << std::endl;
-		exit(1);
-	}
-	std::set<int> column_set;
-	enum class State { Initial, Left, Between, Right, } state = State::Initial;
-	char ch;
-	size_t left, value;
-	char const* p = optarg;
-	do {
-		ch = *p++;
-		switch(state) {
-		case State::Initial:
-			if(ch == '-') {
-				// range open on left; assume first column
-				left = is_one_based ? 1 : 0;
-				state = State::Between;
-			} else if(isdigit(ch)) {
-				value = ch - '0';
-				state = State::Left;
-			} else if(ch == '\0' || ch == ',') {
-				// ignore empty column specification
-			} else {
-				std::cerr << "invalid column specification \"" << optarg << '"' << std::endl;
-				exit(1);
-			}
-			break;
-		case State::Left:
-			if(ch == '-') {
-				left = value;
-				state = State::Between;
-			} else if(isdigit(ch)) {
-				value *= 10;
-				value += ch - '0';
-			} else if(ch == ',') {
-				column_set.insert(value);
-				state = State::Initial;
-			} else if(ch == '\0') {
-				column_set.insert(value);
-			} else {
-				std::cerr << "invalid column specification \"" << optarg << '"' << std::endl;
-				exit(1);
-			}
-			break;
-		case State::Between:
-			if(isdigit(ch)) {
-				value = ch - '0';
-				state = State::Right;
-			} else if(ch == '\0' || ch == ',') {
-				// range open on right
-				all_begin = std::min(all_begin, left);
-				state = State::Initial;
-			} else {
-				std::cerr << "invalid column specification \"" << optarg << '"' << std::endl;
-				exit(1);
-			}
-			break;
-		case State::Right:
-			if(isdigit(ch)) {
-				value *= 10;
-				value += ch - '0';
-			} else if(ch == '\0' || ch == ',') {
-				for(size_t i = left; i <= value; ++i) {
-					column_set.insert(i);
-				}
-				state = State::Initial;
-			} else {
-				std::cerr << "invalid column specification \"" << optarg << '"' << std::endl;
-				exit(1);
-			}
-			break;
-		}
-	} while(ch);
-	auto n= *std::max_element(column_set.begin(), column_set.end());
-	column_vector.resize(is_one_based ? n : n + 1);
-	for(auto& i : column_set) {
-		column_vector[is_one_based ? i - 1 : i] = true;
-	}
-	if(all_begin < std::numeric_limits<size_t>::max()) {
-		if(is_one_based) {
-			--all_begin;
-		}
-		column_vector.resize(all_begin);
-	}
-	if(all_begin == column_vector.size() && std::all_of(column_vector.begin(), column_vector.end(), [](int i) { return !!i; })) {
-		std::cerr << "invalid column specification \"" << optarg << '"' << std::endl;
-		exit(1);
-	}
+	return rv;
 }
 
-static void csvcut(std::istream& sin) {
-	std::string input, output;
-	while(std::getline(sin, input)) {
-		output.clear();
-		size_t column_index = 0;
-		bool is_in_quote = false, needs_comma = false, wants_output = !!column_vector[0];
-		char const* p = nullptr;
-		for(auto& ch : input) {
-			if(ch == '"') {
-				is_in_quote = !is_in_quote;
-			} else if(!is_in_quote && ch == ',') {
-				++column_index;
-				if(column_index >= column_vector.size()) {
-					if(column_index >= all_begin) {
-						p = 1 + &ch;
-					}
-					break;
-				}
-				if(needs_comma) {
-					output += ',';
-				}
-				needs_comma = wants_output;
-				wants_output = !!column_vector[column_index];
-				continue;
+static int get_index(char const* begin, char const* end, vector const& parts, bool is_one_based) {
+	int index;
+	if(std::all_of(begin, end, [](char ch) { return std::isdigit(ch); })) {
+		// They're all digits; parse it as a number.
+		index= std::atoi(begin);
+		if(is_one_based) {
+			if(index < 1) {
+				std::cerr << prog << ": invalid column specification " << index << std::endl;
+				exit(2);
 			}
-			if(wants_output) {
-				if(needs_comma) {
-					needs_comma = false;
-					output += ',';
-				}
-				output += ch;
+			--index;
+		}
+		if(index >= static_cast<int>(parts.size())) {
+			if(is_one_based) {
+				++index;
+			}
+			std::cerr << prog << ": invalid column specification " << index << std::endl;
+			exit(2);
+		}
+	} else {
+		// Some aren't digits; parse it as a column name.
+		auto s= std::string(begin, end);
+		auto it= std::find(parts.begin(), parts.end(), s);
+		if(it == parts.end()) {
+			std::cerr << prog << ": cannot find '" << s << '\'' << std::endl;
+			exit(1);
+		}
+		index= it - parts.begin();
+	}
+	return index;
+}
+
+static void parse_and_cut(char* specification, std::istream& sin, bool is_one_based, bool wants_header) {
+	// Check for problems.
+	char const* range_token= std::strtok(specification, ",");
+	if(!range_token) {
+		std::cerr << prog << ": no column specification provided" << std::endl;
+		exit(2);
+	}
+
+	// Read the first line since I might need it for the specification.
+	std::string s;
+	if(!std::getline(sin, s)) {
+		return; // No data; don't bother.
+	}
+	vector first_parts= as_parts(s);
+
+	// Parse each range.
+	std::vector<int> indices;
+	do {
+		// Check if this is a range.
+		char const* end_of_range= std::strrchr(range_token, '-');
+		if(end_of_range) {
+			// Get the first index of the range.
+			int first_index;
+			if(range_token == end_of_range) {
+				// There is no first index; it's open on the left.
+				first_index= 0;
+			} else {
+				first_index= get_index(range_token, end_of_range, first_parts, is_one_based);
+			}
+
+			// Get the last index of the range.
+			range_token= end_of_range + 1;
+			int last_index;
+			if(*range_token) {
+				end_of_range= range_token + strlen(range_token);
+				last_index= get_index(range_token, end_of_range, first_parts, is_one_based);
+			} else {
+				// There is no last index; it's open on the right.
+				last_index= first_parts.size() - 1;
+			}
+
+			// Add the range to the collection of indices.
+			for(int i= first_index; i <= last_index; ++i) {
+				indices.push_back(i);
+			}
+		} else {
+			// It's not a range.
+			end_of_range= range_token + strlen(range_token);
+			int index= get_index(range_token, end_of_range, first_parts, is_one_based);
+			indices.push_back(index);
+		}
+	} while(range_token= std::strtok(nullptr, ","), range_token);
+
+	// Print the first line, if requested.
+	if(wants_header) {
+		for(int i= 0, n= indices.size(); i < n; ++i) {
+			std::cout << first_parts[indices[i]];
+			if(i < n - 1) {
+				std::cout << ',';
+			} else {
+				std::cout << std::endl;
 			}
 		}
-		if(needs_comma) {
-			output += ',';
+	}
+
+	// Read and print the rest of the lines.
+	while(std::getline(sin, s)) {
+		vector first_parts= as_parts(s);
+		for(int i= 0, n= indices.size(); i < n; ++i) {
+			if(indices[i] < static_cast<int>(first_parts.size())) {
+				std::cout << first_parts[indices[i]];
+			}
+			if(i < n - 1) {
+				std::cout << ',';
+			} else {
+				std::cout << std::endl;
+			}
 		}
-		std::cout << output;
-		if(p != nullptr) {
-			std::cout << p;
-		}
-		std::cout << std::endl;
 	}
 }
 
 int main(int argc, char* argv[]) {
-	char const* prog = strrchr(argv[0], '/');
+	// Extract the name of the program for nicer usage and error reports.
+	prog= strrchr(argv[0], '/');
 	if(prog == nullptr) {
-		prog = argv[0];
+		prog= argv[0];
 	} else {
 		++prog;
 	}
 
+	// Parse options and process files.
+	char* specification= nullptr;
+	char const* file_name= nullptr;
+	bool is_one_based= false, wants_header= true;
 	int ch;
-	while(ch = getopt(argc, argv, "c:K:h"), ch != -1) {
+	while(ch= getopt(argc, argv, "+sc:K:h"), ch != -1 || optind < argc) {
 		switch(ch) {
 		case '?':
 		case 'h':
-			return usage(prog);
+			return usage();
+		case 's':
+			wants_header= false;
+			break;
 		case 'c':
-			parse_columns(optarg, true);
+			specification= optarg;
+			file_name= nullptr;
+			is_one_based= true;
 			break;
 		case 'K':
-			parse_columns(optarg, false);
+			specification= optarg;
+			file_name= nullptr;
+			is_one_based= false;
+			break;
+		case -1:
+			file_name= argv[optind];
+			std::ifstream fin(file_name);
+			if(!fin) {
+				std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
+				exit(1);
+			}
+			parse_and_cut(specification, fin, is_one_based, wants_header);
+			optind += 1;
 			break;
 		}
 	}
-	if(argc - optind > 1) {
-		std::cerr << "too many arguments" << std::endl;
-		return usage(prog);
-	}
-	if(all_begin == std::numeric_limits<size_t>::max() && column_vector.empty()) {
-		std::cerr << "column specification not provided" << std::endl;
-		exit(1);
-	}
-	if(argv[optind]) {
-		std::ifstream fin(argv[optind]);
-		if(fin) {
-			csvcut(fin);
-		} else {
-			std::cerr << "cannot open file \"" << argv[optind] << '"' << std::endl;
-			return 1;
-		}
-	} else {
-		csvcut(std::cin);
+
+	if(file_name == nullptr) {
+		// Process standard input.
+		parse_and_cut(specification, std::cin, is_one_based, wants_header);
 	}
 
 	return 0;
