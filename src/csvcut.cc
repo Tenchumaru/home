@@ -16,13 +16,14 @@ using vector= std::vector<char const*>;
 static char const* prog;
 
 static int usage() {
-	std::cerr << "print selected columns to standard output" << std::endl;
+	std::cerr << "Print selected columns to standard output." << std::endl;
 	std::cerr << std::endl;
-	std::cerr << "usage: " << prog << " [-h] [-s] -(c|K) columns [input.csv] [...]" << std::endl;
-	std::cerr << std::endl;
+	std::cerr << "usage: " << prog << " [-h] [-s] -(c|K) columns [input.csv] [...]" << std::endl << std::endl;
 	std::cerr << "\t-s\tskip the header (i.e., the first line)" << std::endl;
 	std::cerr << "\t-c\tcomma-separated list of 1-based column ranges to print" << std::endl;
-	std::cerr << "\t-K\tcomma-separated list of 0-based column ranges to print" << std::endl;
+	std::cerr << "\t-K\tcomma-separated list of 0-based column ranges to print" << std::endl << std::endl;
+	std::cerr << "Options affect only those files that appear after them.  Specifying options at" << std::endl;
+	std::cerr << "the end assumes standard input is the last file." << std::endl;
 	return 2;
 }
 
@@ -48,7 +49,7 @@ static vector as_parts(std::string& line) {
 static int get_index(char const* begin, char const* end, vector const& parts, bool is_one_based) {
 	int index;
 	if(std::all_of(begin, end, [](char ch) { return std::isdigit(ch); })) {
-		// They're all digits; parse it as a number.
+		// All characters are digits; parse as a number.
 		index= std::atoi(begin);
 		if(is_one_based) {
 			if(index < 1) {
@@ -65,11 +66,11 @@ static int get_index(char const* begin, char const* end, vector const& parts, bo
 			exit(2);
 		}
 	} else {
-		// Some aren't digits; parse it as a column name.
+		// Some characters are not digits; parse as a column name.
 		auto s= std::string(begin, end);
 		auto it= std::find(parts.begin(), parts.end(), s);
 		if(it == parts.end()) {
-			std::cerr << prog << ": cannot find '" << s << '\'' << std::endl;
+			std::cerr << prog << ": cannot find '" << s << "' in header" << std::endl;
 			exit(1);
 		}
 		index= it - parts.begin();
@@ -81,8 +82,8 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 	// Check for problems.
 	char const* range_token= std::strtok(specification, ",");
 	if(!range_token) {
-		std::cerr << prog << ": no column specification provided" << std::endl;
-		exit(2);
+		std::cerr << prog << ": no column specification provided" << std::endl << std::endl;
+		exit(usage());
 	}
 
 	// Read the first line since I might need it for the specification.
@@ -119,8 +120,14 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 			}
 
 			// Add the range to the collection of indices.
-			for(int i= first_index; i <= last_index; ++i) {
-				indices.push_back(i);
+			if(last_index < first_index) {
+				for(int i= first_index; i >= last_index; --i) {
+					indices.push_back(i);
+				}
+			} else {
+				for(int i= first_index; i <= last_index; ++i) {
+					indices.push_back(i);
+				}
 			}
 		} else {
 			// It's not a range.
