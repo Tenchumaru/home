@@ -9,35 +9,6 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	cd_() {
 	 "cd" "\$@" && ls --color=auto -F
 	}
-	ht_() {
-	 if [ -n "\$2" ]
-	 then
-	  for file in "\$@"
-	  do
-	   echo "*** \$file ***"
-	   N=\`head -21 "\$file" | wc -l\`
-	   if [ \$N -gt 20 ]
-	   then
-	    head "\$file"
-	    echo "..."
-	    tail "\$file"
-	   else
-	    cat "\$file"
-	   fi
-	   echo
-	  done
-	 else
-	  N=\`head -21 "\$@" | wc -l\`
-	  if [ \$N -gt 20 ]
-	  then
-	   head "\$@"
-	   echo "..."
-	   tail "\$@"
-	  else
-	   cat "\$@"
-	  fi
-	 fi
-	}
 	pd_() {
 	 pushd "\$@" && ls --color=auto -F
 	}
@@ -45,7 +16,6 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	 popd "\$@" && ls --color=auto -F
 	}
 	alias cd=cd_
-	alias ht=ht_
 	alias md=mkdir
 	alias pd=pd_
 	alias pp=pp_
