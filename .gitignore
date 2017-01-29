@@ -34,8 +34,5 @@ nosetests.xml
 .pydevproject
 
 # back-up and swap files
-*.swp
+*.sw[op]
 *~
-
-# exclude everything; I'll force it
-*
