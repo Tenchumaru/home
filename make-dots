@@ -1,6 +1,6 @@
 #!/bin/sh
-cd ~
-if [ -s .bashrc -a ! -s .bashrc.backup ]
+cd $HOME
+if [ -s .bashrc -a ! -s .bashrc.backup ] && grep -q force_color_prompt .bashrc
 then
 	mv .bashrc .bashrc.backup
 	sed -e "/^#force_color_prompt/s/#//" -e "/debian.*033/s/'[^']*/'"'\\[\\033[01;32m\\]\\!\\[\\033[00m\\] \\[\\033[01;34m\\]\\w\\[\\033[00m\\]$ /' .bashrc.backup > .bashrc
@@ -15,6 +15,37 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	pp_() {
 	 popd "\$@" && ls --color=auto -F
 	}
+	rall_() {
+	 git checkout master || return
+	 for branch in \$(git branch | grep -v master); do
+	  git checkout \$branch || return
+	  git rebase master || return
+	 done
+	 git checkout master
+	}
+	wip_() {
+	 D=.
+	 while ! [ -d \$D/.git ]; do
+	  D=\$(readlink -f \$D/..)
+	  [ "\$D" = "/" ] && return
+	 done
+	 git add \$D && git commit -m WIP
+	}
+	ephemeral_() {
+	 B=\$(git branch 2> /dev/null | grep -F "*" | sed s/..//)
+	 [ "\$B" = "ephemeral" ] && return
+	 git checkout -b ephemeral && git add . && git commit -m WIP && git checkout \$B
+	}
+	rephemeral_() {
+	 B=\$(git branch 2> /dev/null | grep -F "*" | sed s/..//)
+	 [ "\$B" = "ephemeral" ] && return
+	 git checkout ephemeral &&
+	  git rebase \$B &&
+	  git checkout \$B &&
+	  git merge --ff-only ephemeral &&
+	  git branch -d ephemeral &&
+	  git reset HEAD^
+	}
 	alias cd=cd_
 	alias md=mkdir
 	alias pd=pd_
@@ -28,10 +59,18 @@ sed -e "s/^    /\t\t\t\t/" -e "s/^   /\t\t\t/" -e "s/^  /\t\t/" -e "s/^ /\t/" > 
 	alias ll='ls -l'
 	alias la='ls -A'
 	alias lal='la -l'
+	alias gca='git commit --amend'
 	alias gcm='git commit -m'
 	alias gd='git diff'
 	alias gl='git log --name-status'
+	alias grc='git rebase --continue'
 	alias gs='git status -s'
+	alias gx='git checkout'
+	alias pbcopy='xclip -i -selection clipboard'
+	alias tm='tmux attach || tmux new'
+	alias wip=wip_
+	alias ephemeral=ephemeral_
+	alias rephemeral=rephemeral_
 	export PYTHONPATH=~/lib
 EOF
 cat > .vimrc <<- EOF
@@ -41,14 +80,15 @@ cat > .vimrc <<- EOF
 	map gh :wa<CR>:!python3 % --help<CR>
 	map gj :wa<CR>:!./%<CR>
 	map gl :ls<CR>
+	map gP :wa<CR>:!pudb3 % --test<CR>
 	map gp :wa<CR>:!python3 % --test<CR>
 	map gq :wa<CR>:!psql -f %<CR>
 	map gw :wa<CR>
-	set ai
+	set autoindent
 	set background=dark
-	set sw=4
-	set ts=4
+	set shiftwidth=4
+	set tabstop=4
 	syntax on
 	filetype indent plugin on
-	autocmd FileType python setlocal expandtab softtabstop=2 sw=2 ts=2
+	autocmd FileType python setlocal expandtab softtabstop=2 shiftwidth=2 tabstop=8
 EOF
