@@ -9,6 +9,6 @@ def parse(arg, as_index):
     def as_range(s):
       parts= s.split("-")
       return range(int(parts[0]) - a, int(parts[-1]) + b)
-    return tuple(it.chain(*map(as_range, arg.split(","))))
+    return tuple(it.chain.from_iterable(map(as_range, arg.split(","))))
   else:
     return ()
