@@ -80,7 +80,7 @@ static int get_index(char const* begin, char const* end, vector const& parts, bo
 
 static void parse_and_cut(char* specification, std::istream& sin, bool is_one_based, bool wants_header) {
 	// Check for problems.
-	char const* range_token= std::strtok(specification, ",");
+	char const* range_token= specification != nullptr ? std::strtok(specification, ",") : nullptr;
 	if(!range_token) {
 		std::cerr << prog << ": no column specification provided" << std::endl << std::endl;
 		exit(usage());
