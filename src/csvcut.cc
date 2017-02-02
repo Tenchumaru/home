@@ -166,6 +166,8 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 }
 
 int main(int argc, char* argv[]) {
+	std::ios_base::sync_with_stdio(false);
+
 	// Extract the name of the program for nicer usage and error reports.
 	prog= strrchr(argv[0], '/');
 	if(prog == nullptr) {
