@@ -10,11 +10,47 @@
 #include <vector>
 #include <cctype>
 #include <cstring>
-#include <unistd.h>
-
-using vector= std::vector<char const*>;
+#ifdef _WIN32
+#	include <io.h>
+#	define close _close
+#	define open _open
+#	define read _read
+char const path_separator= '\\';
+#else
+#	include <unistd.h>
+char const path_separator= '/';
+#endif
 
 static char const* prog;
+
+#ifdef _WIN32
+static int optind= 1;
+static char* optarg;
+
+static int getopt(int argc, char* argv[], char const* opts) {
+	if(optind < argc) {
+		if(argv[optind][0] == '-') {
+			char const* p= std::strchr(opts, argv[optind++][1]);
+			if(p == nullptr) {
+				return '?';
+			} else if(p[1] == ':') {
+				optarg= argv[optind];
+				if(optarg != nullptr) {
+					++optind;
+				} else {
+					std::cerr << prog << ": option requires an argument -- '" <<
+						*p << '\'' << std::endl;
+					return '?';
+				}
+			}
+			return *p;
+		}
+	}
+	return -1;
+}
+#endif
+
+using vector= std::vector<char const*>;
 
 static int usage() {
 	std::cerr << "Print selected columns to standard output." << std::endl;
@@ -170,7 +206,7 @@ int main(int argc, char* argv[]) {
 	std::ios_base::sync_with_stdio(false);
 
 	// Extract the name of the program for nicer usage and error reports.
-	prog= strrchr(argv[0], '/');
+	prog= strrchr(argv[0], path_separator);
 	if(prog == nullptr) {
 		prog= argv[0];
 	} else {
