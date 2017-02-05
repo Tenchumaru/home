@@ -3,7 +3,7 @@ ht_() {
 	N=$(head -21 "$1" | wc -l)
 	if [ $N -gt 20 ]; then
 		head "$1"
-		echo "..."
+		echo ">---<"
 		tail "$1"
 	else
 		cat "$1"
@@ -11,21 +11,20 @@ ht_() {
 }
 if [ -n "$2" ]; then
 	for file in "$@"; do
-		echo "*** $file ***"
-		N=$(head -21 "$file" | wc -l)
-		if [ $N -gt 20 ]; then
-			head "$file"
-			echo "..."
-			tail "$file"
-		else
-			cat "$file"
-		fi
+		echo "==> $file <=="
+		ht_ "$file"
 		echo
 	done
 elif [ -n "$1" ]; then
 	ht_ "$1"
 else
-	# This does not work all of the time.
-	# http://stackoverflow.com/questions/13718242/how-does-head-tail-file-work
-	cat | (head; echo "..."; tail)
+	T=$(mktemp)
+	on_abort() {
+		rm $T
+		exit 3
+	}
+	trap on_abort INT TERM
+	cat > $T
+	ht_ $T
+	rm $T
 fi
