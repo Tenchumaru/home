@@ -20,6 +20,9 @@ char const path_separator= '\\';
 #	include <unistd.h>
 char const path_separator= '/';
 #endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static char const* prog;
 
@@ -50,7 +53,8 @@ static int getopt(int argc, char* argv[], char const* opts) {
 }
 #endif
 
-using vector= std::vector<char const*>;
+using ivector= std::vector<size_t>;
+using pvector= std::vector<char const*>;
 
 static int usage() {
 	std::cerr << "Print selected columns to standard output." << std::endl;
@@ -64,9 +68,9 @@ static int usage() {
 	return 2;
 }
 
-static vector as_parts(std::string& line) {
+static pvector as_parts(std::string& line) {
 	bool is_in_quote= false;
-	vector rv(1, &line[0]);
+	pvector rv(1, &line[0]);
 	for(auto& ch: line) {
 		if(is_in_quote) {
 			if(ch == '"') {
@@ -83,7 +87,7 @@ static vector as_parts(std::string& line) {
 	return rv;
 }
 
-static size_t get_index(char const* begin, char const* end, vector const& parts, bool is_one_based) {
+static size_t get_index(char const* begin, char const* end, pvector const& parts, bool is_one_based) {
 	size_t index;
 	if(std::all_of(begin, end, [](char ch) { return std::isdigit(ch); })) {
 		// All characters are digits; parse as a number.
@@ -115,7 +119,73 @@ static size_t get_index(char const* begin, char const* end, vector const& parts,
 	return index;
 }
 
-static void parse_and_cut(char* specification, std::istream& sin, bool is_one_based, bool wants_header) {
+static std::vector<bool> output_states;
+static size_t output_index;
+static bool is_writing, ignoring_commas, wrote_previous_column;
+
+static void cut(char const* begin, char const* end) {
+	if(output_index < output_states.size())
+		is_writing= output_states[output_index];
+	else {
+		is_writing= false;
+		char const* p= static_cast<char const*>(memchr(begin, '\n', end - begin));
+		if(p != nullptr) {
+			begin= p + 1;
+			std::cout << std::endl;
+			output_index= 0;
+			is_writing= output_states[0];
+			ignoring_commas= false;
+			wrote_previous_column= false;
+		} else {
+			return;
+		}
+	}
+	for(char const* p= begin; p < end; ++p) {
+		if(*p == '"') {
+			ignoring_commas= !ignoring_commas;
+		} else if(*p == ',') {
+			if(!ignoring_commas) {
+				if(is_writing) {
+					if(wrote_previous_column) {
+						std::cout << ',';
+					} else {
+						wrote_previous_column= true;
+					}
+					std::cout.write(begin, p - begin);
+				}
+				begin= p + 1;
+				++output_index;
+				if(output_index >= output_states.size()) {
+					is_writing= false;
+					p= static_cast<char const*>(memchr(p, '\n', end - p));
+					if(p != nullptr) {
+						--p;
+					} else {
+						break;
+					}
+				} else {
+					is_writing= output_states[output_index];
+				}
+			}
+		} else if(*p == '\n') {
+			begin= p + 1;
+			std::cout << std::endl;
+			output_index= 0;
+			is_writing= output_states[0];
+			ignoring_commas= false;
+			wrote_previous_column= false;
+		}
+	}
+	if(is_writing) {
+		if(wrote_previous_column) {
+			wrote_previous_column= false;
+			std::cout << ',';
+		}
+		std::cout.write(begin, end - begin);
+	}
+}
+
+static void parse_and_cut(char* specification, char const* file_name, std::istream& sin, bool is_one_based, bool wants_header) {
 	// Check for problems.
 	char const* range_token= specification != nullptr ? std::strtok(specification, ",") : nullptr;
 	if(!range_token) {
@@ -128,10 +198,10 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 	if(!std::getline(sin, s)) {
 		return; // No data; don't bother.
 	}
-	vector first_parts= as_parts(s);
+	pvector first_parts= as_parts(s);
 
 	// Parse each range.
-	std::vector<size_t> indices;
+	ivector indices;
 	do {
 		// Check if this is a range.
 		char const* end_of_range= std::strrchr(range_token, '-');
@@ -174,29 +244,52 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 		}
 	} while(range_token= std::strtok(nullptr, ","), range_token);
 
-	// Print the first line, if requested.
-	if(wants_header) {
-		for(size_t i= 0, n= indices.size(); i < n; ++i) {
-			std::cout << first_parts[indices[i]];
-			if(i < n - 1) {
-				std::cout << ',';
-			} else {
-				std::cout << std::endl;
+	// Check if it's possible to use a faster algorithm.
+	auto sorted= indices;
+	std::sort(sorted.begin(), sorted.end());
+	if(indices == sorted) {
+		// Yes, it is; use it instead.
+		int fd= file_name != nullptr ? open(file_name, O_RDONLY) : 0;
+		if(fd < 0) {
+			std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
+			exit(1);
+		} else {
+			output_states.resize(indices.back() + 1);
+			for(auto i: indices) {
+				output_states[i]= true;
+			}
+			char buf[4096];
+			for(int n; n= read(fd, buf, sizeof(buf)), n > 0;) {
+				cut(buf, buf + n);
+			}
+			if(fd != 0)
+				close(fd);
+		}
+	} else {
+		// Print the first line, if requested.
+		if(wants_header) {
+			for(size_t i= 0, n= indices.size(); i < n; ++i) {
+				std::cout << first_parts[indices[i]];
+				if(i < n - 1) {
+					std::cout << ',';
+				} else {
+					std::cout << std::endl;
+				}
 			}
 		}
-	}
 
-	// Read and print the rest of the lines.
-	while(std::getline(sin, s)) {
-		vector parts= as_parts(s);
-		for(size_t i= 0, n= indices.size(); i < n; ++i) {
-			if(indices[i] < parts.size()) {
-				std::cout << parts[indices[i]];
-			}
-			if(i < n - 1) {
-				std::cout << ',';
-			} else {
-				std::cout << std::endl;
+		// Read and print the rest of the lines.
+		while(std::getline(sin, s)) {
+			pvector parts= as_parts(s);
+			for(size_t i= 0, n= indices.size(); i < n; ++i) {
+				if(indices[i] < parts.size()) {
+					std::cout << parts[indices[i]];
+				}
+				if(i < n - 1) {
+					std::cout << ',';
+				} else {
+					std::cout << std::endl;
+				}
 			}
 		}
 	}
@@ -243,7 +336,7 @@ int main(int argc, char* argv[]) {
 				std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
 				exit(1);
 			}
-			parse_and_cut(specification, fin, is_one_based, wants_header);
+			parse_and_cut(specification, file_name, fin, is_one_based, wants_header);
 			++optind;
 			break;
 		}
@@ -251,7 +344,7 @@ int main(int argc, char* argv[]) {
 
 	if(file_name == nullptr) {
 		// Process standard input.
-		parse_and_cut(specification, std::cin, is_one_based, wants_header);
+		parse_and_cut(specification, nullptr, std::cin, is_one_based, wants_header);
 	}
 
 	return 0;
