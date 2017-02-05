@@ -1,0 +1,46 @@
+#!/bin/bash
+
+usage() {
+	echo "Restore the database."
+	echo
+	echo "usage: $0 [-d database] input_db_file"
+	echo
+	echo "Use -d to specify the database (default specified in input_db_file)."
+	echo "Use -h to print this help."
+	exit 2
+}
+
+# Collect and validate the options.
+IsTesting=false
+while getopts td:h o; do
+	case $o in
+		t)    IsTesting=true;;
+		d)    Database=$OPTARG;;
+		h|\?) usage;;
+	esac
+done
+shift $(expr $OPTIND - 1)
+[ $# -eq 1 ] || usage
+check $1 || exit 1
+InputFile=$1
+
+# Configure exit.
+on_exit() {
+	[ $? -eq 0 ] && echo "$0 done" || echo "$0 failed: $?"
+}
+trap on_exit EXIT
+on_abort() {
+	exit 3
+}
+trap on_abort INT TERM
+
+# Restore the database.
+if [ -n "$Database" ]; then
+	dropdb --if-exists $Database
+	createdb -T template0 $Database
+	pg_restore -d $Database $InputFile
+else
+	Database=$(pg_restore -l $InputFile | grep -F dbname | awk '{print $NF}')
+	dropdb --if-exists $Database
+	pg_restore -C -d postgres $InputFile
+fi

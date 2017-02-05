@@ -1,0 +1,24 @@
+#!/bin/bash
+
+usage() {
+	echo "Show the database schema."
+	echo
+	echo "usage: $0 database_name"
+	echo
+	echo "Use -h to print this help."
+	exit 2
+}
+
+# Collect and validate the options.
+IsTesting=false
+while getopts th o; do
+	case $o in
+		t)    IsTesting=true;;
+		h|\?) usage;;
+	esac
+done
+shift $(expr $OPTIND - 1)
+[ $# -eq 1 ] || usage
+Database=$1
+
+pg_dump --port 5432 --no-password --schema-only --create --clean $Database | sed '/^--/d'
