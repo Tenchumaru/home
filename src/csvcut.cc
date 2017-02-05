@@ -1,4 +1,4 @@
-// g++ -std=c++11 -o ../bin/csvcut -O3 csvcut.cc
+// g++ -std=c++11 -o $HOME/bin/csvcut -O3 csvcut.cc
 
 #include <algorithm>
 #include <fstream>
@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <cctype>
 #include <cstring>
 #include <unistd.h>
 
@@ -151,10 +152,10 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 
 	// Read and print the rest of the lines.
 	while(std::getline(sin, s)) {
-		vector first_parts= as_parts(s);
+		vector parts= as_parts(s);
 		for(int i= 0, n= indices.size(); i < n; ++i) {
-			if(indices[i] < static_cast<int>(first_parts.size())) {
-				std::cout << first_parts[indices[i]];
+			if(indices[i] < static_cast<int>(parts.size())) {
+				std::cout << parts[indices[i]];
 			}
 			if(i < n - 1) {
 				std::cout << ',';
@@ -207,7 +208,7 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 			parse_and_cut(specification, fin, is_one_based, wants_header);
-			optind += 1;
+			++optind;
 			break;
 		}
 	}
