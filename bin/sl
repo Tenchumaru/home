@@ -1,0 +1,19 @@
+#!/bin/bash
+
+usage() {
+	echo "Print a specific line of the input."
+	echo
+	echo "usage: $0 line_number [input_file]"
+	echo
+	echo "Use -h to print this help."
+	exit 2
+}
+
+while getopts h o; do
+	case $o in
+	h|\?) usage;;
+	esac
+done
+shift $(expr $OPTIND - 1)
+[ $# -ge 1 -a $# -le 2 ] || usage
+head -$1 $2 | tail -1
