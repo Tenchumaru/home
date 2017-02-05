@@ -119,9 +119,9 @@ static size_t get_index(char const* begin, char const* end, pvector const& parts
 	return index;
 }
 
-static std::vector<bool> output_states;
+static ivector output_states;
 static size_t output_index;
-static bool is_writing, ignoring_commas, wrote_previous_column;
+static size_t is_writing, ignoring_commas, wrote_previous_column;
 
 static void cut(char const* begin, char const* end) {
 	if(output_index < output_states.size())
