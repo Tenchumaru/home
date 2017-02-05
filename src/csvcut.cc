@@ -185,12 +185,20 @@ static void cut(char const* begin, char const* end) {
 	}
 }
 
-static void parse_and_cut(char* specification, char const* file_name, std::istream& sin, bool is_one_based, bool wants_header) {
+static void parse_and_cut(char* specification, char const* file_name, bool is_one_based, bool wants_header) {
 	// Check for problems.
 	char const* range_token= specification != nullptr ? std::strtok(specification, ",") : nullptr;
 	if(!range_token) {
 		std::cerr << prog << ": no column specification provided" << std::endl << std::endl;
 		exit(usage());
+	}
+
+	// Open the file or use standard input.
+	std::ifstream fin(file_name);
+	std::istream& sin= file_name != nullptr ? fin : std::cin;
+	if(!sin) {
+		std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
+		exit(1);
 	}
 
 	// Read the first line since I might need it for the specification.
@@ -244,6 +252,18 @@ static void parse_and_cut(char* specification, char const* file_name, std::istre
 		}
 	} while(range_token= std::strtok(nullptr, ","), range_token);
 
+	// Print the first line, if requested.
+	if(wants_header) {
+		for(size_t i= 0, n= indices.size(); i < n; ++i) {
+			std::cout << first_parts[indices[i]];
+			if(i < n - 1) {
+				std::cout << ',';
+			} else {
+				std::cout << std::endl;
+			}
+		}
+	}
+
 	// Check if it's possible to use a faster algorithm.
 	auto sorted= indices;
 	std::sort(sorted.begin(), sorted.end());
@@ -258,6 +278,14 @@ static void parse_and_cut(char* specification, char const* file_name, std::istre
 			for(auto i: indices) {
 				output_states[i]= true;
 			}
+			if(wants_header && fd != 0) {
+				// I wrote the first line above.  Skip it here.
+				char ch;
+				for(int n; n= read(fd, &ch, sizeof(ch)), n > 0;) {
+					if(ch == '\n')
+						break;
+				}
+			}
 			char buf[4096];
 			for(int n; n= read(fd, buf, sizeof(buf)), n > 0;) {
 				cut(buf, buf + n);
@@ -266,18 +294,6 @@ static void parse_and_cut(char* specification, char const* file_name, std::istre
 				close(fd);
 		}
 	} else {
-		// Print the first line, if requested.
-		if(wants_header) {
-			for(size_t i= 0, n= indices.size(); i < n; ++i) {
-				std::cout << first_parts[indices[i]];
-				if(i < n - 1) {
-					std::cout << ',';
-				} else {
-					std::cout << std::endl;
-				}
-			}
-		}
-
 		// Read and print the rest of the lines.
 		while(std::getline(sin, s)) {
 			pvector parts= as_parts(s);
@@ -331,12 +347,7 @@ int main(int argc, char* argv[]) {
 			break;
 		case -1:
 			file_name= argv[optind];
-			std::ifstream fin(file_name);
-			if(!fin) {
-				std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
-				exit(1);
-			}
-			parse_and_cut(specification, file_name, fin, is_one_based, wants_header);
+			parse_and_cut(specification, file_name, is_one_based, wants_header);
 			++optind;
 			break;
 		}
@@ -344,7 +355,7 @@ int main(int argc, char* argv[]) {
 
 	if(file_name == nullptr) {
 		// Process standard input.
-		parse_and_cut(specification, nullptr, std::cin, is_one_based, wants_header);
+		parse_and_cut(specification, nullptr, is_one_based, wants_header);
 	}
 
 	return 0;
