@@ -36,3 +36,8 @@ nosetests.xml
 # back-up and swap files
 *.sw[op]
 *~
+
+# test and temporary files and directories
+a.out
+tesst*
+tmp
