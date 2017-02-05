@@ -47,8 +47,8 @@ static vector as_parts(std::string& line) {
 	return rv;
 }
 
-static int get_index(char const* begin, char const* end, vector const& parts, bool is_one_based) {
-	int index;
+static size_t get_index(char const* begin, char const* end, vector const& parts, bool is_one_based) {
+	size_t index;
 	if(std::all_of(begin, end, [](char ch) { return std::isdigit(ch); })) {
 		// All characters are digits; parse as a number.
 		index= std::atoi(begin);
@@ -59,7 +59,7 @@ static int get_index(char const* begin, char const* end, vector const& parts, bo
 			}
 			--index;
 		}
-		if(index >= static_cast<int>(parts.size())) {
+		if(index >= parts.size()) {
 			if(is_one_based) {
 				++index;
 			}
@@ -95,13 +95,13 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 	vector first_parts= as_parts(s);
 
 	// Parse each range.
-	std::vector<int> indices;
+	std::vector<size_t> indices;
 	do {
 		// Check if this is a range.
 		char const* end_of_range= std::strrchr(range_token, '-');
 		if(end_of_range) {
 			// Get the first index of the range.
-			int first_index;
+			size_t first_index;
 			if(range_token == end_of_range) {
 				// There is no first index; it's open on the left.
 				first_index= 0;
@@ -111,7 +111,7 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 
 			// Get the last index of the range.
 			range_token= end_of_range + 1;
-			int last_index;
+			size_t last_index;
 			if(*range_token) {
 				end_of_range= range_token + strlen(range_token);
 				last_index= get_index(range_token, end_of_range, first_parts, is_one_based);
@@ -122,25 +122,25 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 
 			// Add the range to the collection of indices.
 			if(last_index < first_index) {
-				for(int i= first_index; i >= last_index; --i) {
+				for(size_t i= first_index; i >= last_index; --i) {
 					indices.push_back(i);
 				}
 			} else {
-				for(int i= first_index; i <= last_index; ++i) {
+				for(size_t i= first_index; i <= last_index; ++i) {
 					indices.push_back(i);
 				}
 			}
 		} else {
 			// It's not a range.
 			end_of_range= range_token + strlen(range_token);
-			int index= get_index(range_token, end_of_range, first_parts, is_one_based);
+			size_t index= get_index(range_token, end_of_range, first_parts, is_one_based);
 			indices.push_back(index);
 		}
 	} while(range_token= std::strtok(nullptr, ","), range_token);
 
 	// Print the first line, if requested.
 	if(wants_header) {
-		for(int i= 0, n= indices.size(); i < n; ++i) {
+		for(size_t i= 0, n= indices.size(); i < n; ++i) {
 			std::cout << first_parts[indices[i]];
 			if(i < n - 1) {
 				std::cout << ',';
@@ -153,8 +153,8 @@ static void parse_and_cut(char* specification, std::istream& sin, bool is_one_ba
 	// Read and print the rest of the lines.
 	while(std::getline(sin, s)) {
 		vector parts= as_parts(s);
-		for(int i= 0, n= indices.size(); i < n; ++i) {
-			if(indices[i] < static_cast<int>(parts.size())) {
+		for(size_t i= 0, n= indices.size(); i < n; ++i) {
+			if(indices[i] < parts.size()) {
 				std::cout << parts[indices[i]];
 			}
 			if(i < n - 1) {
