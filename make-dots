@@ -78,7 +78,7 @@ cat > .vimrc <<- EOF
 	map <C-p> :set nonu<CR>
 	map gc :wa<CR>:!g++ -std=c++11 % && ./a.out
 	map gh :wa<CR>:!python3 % --help<CR>
-	map gj :wa<CR>:!./%<CR>
+	map gj :wa<CR>:!\$(readlink -f %)<CR>
 	map gl :ls<CR>
 	map gP :wa<CR>:!pudb3 % --test<CR>
 	map gp :wa<CR>:!python3 % --test<CR>
