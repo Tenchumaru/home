@@ -168,6 +168,9 @@ static void cut(char const* begin, char const* end) {
 				}
 			}
 		} else if(*p == '\n') {
+			if(is_writing && wrote_previous_column) {
+				std::cout << ',';
+			}
 			begin= p + 1;
 			std::cout << std::endl;
 			output_index= 0;
