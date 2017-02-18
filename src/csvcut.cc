@@ -188,6 +188,17 @@ static void cut(char const* begin, char const* end) {
 	}
 }
 
+static bool can_go_faster(ivector const& indices) {
+	auto sorted= indices;
+	std::sort(sorted.begin(), sorted.end());
+	if(indices == sorted) {
+		// The indices are already in ascending order.  Check for duplicates.
+		std::set<ivector::value_type> s(indices.begin(), indices.end());
+		return s.size() == indices.size();
+	}
+	return false;
+}
+
 static void parse_and_cut(char* specification, char const* file_name, bool is_one_based, bool wants_header) {
 	// Check for problems.
 	char const* range_token= specification != nullptr ? std::strtok(specification, ",") : nullptr;
@@ -268,9 +279,7 @@ static void parse_and_cut(char* specification, char const* file_name, bool is_on
 	}
 
 	// Check if it's possible to use a faster algorithm.
-	auto sorted= indices;
-	std::sort(sorted.begin(), sorted.end());
-	if(indices == sorted) {
+	if(can_go_faster(indices)) {
 		// Yes, it is; use it instead.
 		int fd= file_name != nullptr ? open(file_name, O_RDONLY) : 0;
 		if(fd < 0) {
