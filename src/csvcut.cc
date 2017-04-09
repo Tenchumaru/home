@@ -205,11 +205,10 @@ static bool can_go_faster(ivector const& indices) {
 	return false;
 }
 
-static void parse_and_cut(char* specification, char const* file_name, bool is_one_based, bool wants_header) {
+static void parse_and_cut(char const* specification, char const* file_name, bool is_one_based, bool wants_header) {
 	// Check for problems.
-	char const* range_token= specification != nullptr ? std::strtok(specification, ",") : nullptr;
-	if(!range_token) {
-		std::cerr << prog << ": no column specification provided" << std::endl << std::endl;
+	if(!specification || !specification[0]) {
+		std::cerr << prog << ": no column specification provided" << std::endl;
 		exit(usage());
 	}
 
@@ -229,6 +228,8 @@ static void parse_and_cut(char* specification, char const* file_name, bool is_on
 	pvector first_parts= as_parts(s);
 
 	// Parse each range.
+	s= specification;
+	char const* range_token= std::strtok(&s[0], ",");
 	ivector indices;
 	do {
 		// Check if this is a range.
