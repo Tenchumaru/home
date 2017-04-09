@@ -228,10 +228,9 @@ static void parse_and_cut(char const* specification, char const* file_name, bool
 	pvector first_parts= as_parts(s);
 
 	// Parse each range.
-	s= specification;
-	char const* range_token= std::strtok(&s[0], ",");
 	ivector indices;
-	do {
+	s= specification;
+	for(auto range_token : as_parts(s)) {
 		// Check if this is a range.
 		char const* end_of_range= std::strrchr(range_token, '-');
 		if(end_of_range) {
@@ -271,7 +270,7 @@ static void parse_and_cut(char const* specification, char const* file_name, bool
 			size_t index= get_index(range_token, end_of_range, first_parts, is_one_based);
 			indices.push_back(index);
 		}
-	} while(range_token= std::strtok(nullptr, ","), range_token);
+	}
 
 	// Print the first line, if requested.
 	if(wants_header) {
