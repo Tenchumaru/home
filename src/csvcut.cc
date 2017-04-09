@@ -208,7 +208,7 @@ static void parse_and_cut(char* specification, char const* file_name, bool is_on
 	}
 
 	// Open the file or use standard input.
-	std::ifstream fin(file_name);
+	std::ifstream fin(file_name != nullptr ? file_name : "");
 	std::istream& sin= file_name != nullptr ? fin : std::cin;
 	if(!sin) {
 		std::cerr << prog << ": cannot open '" << file_name << "' for reading" << std::endl;
