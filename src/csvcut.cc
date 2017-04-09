@@ -168,15 +168,21 @@ static void cut(char const* begin, char const* end) {
 				}
 			}
 		} else if(*p == '\n') {
-			if(is_writing && wrote_previous_column) {
-				std::cout << ',';
+			if(wrote_previous_column) {
+				if(is_writing) {
+					std::cout << ',';
+				}
+				wrote_previous_column= false;
+			}
+			if(is_writing) {
+				std::cout.write(begin, p + 1 - begin);
+			} else {
+				std::cout << std::endl;
 			}
 			begin= p + 1;
-			std::cout << std::endl;
 			output_index= 0;
 			is_writing= output_states[0];
 			ignoring_commas= false;
-			wrote_previous_column= false;
 		}
 	}
 	if(is_writing) {
