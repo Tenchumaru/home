@@ -1,6 +1,40 @@
 cd_() {
 	"cd" "$@" && ls --color=auto -F
 }
+ephemeral_() {
+	get_branch_
+	[ "$B" = "ephemeral" -o -z "$B" ] && return
+	if [ "$1" = "" ]; then
+		git checkout -b ephemeral && git add "$D" && git commit -m WIP && git switch $B
+	else
+		git checkout -b ephemeral $1
+	fi
+}
+find_git_() {
+	D=.
+	while ! [ -d "$D/.git" ]; do
+		D=$(readlink -f "$D/..")
+		if [ "$D" = "/" ]; then
+			D=
+			return
+		fi
+	done
+}
+gaca_() {
+	find_git_
+	[ "$D" ] || return
+	git add "$D"
+	git commit --amend
+}
+get_branch_() {
+	B=
+	find_git_
+	[ "$D" ] || return
+	B=$(git branch 2> /dev/null | grep -F '*' | sed -e s/..// -e 's/(.* //' -e 's/)//')
+}
+gdls_() {
+	git diff "$1" | grep '^diff ' | sed 's/.* b.//'
+}
 gds_() {
 	[ "$1" ] || return
 	for c in $(git log --name-status | grep -m $1 '^commit ' | sed 's/commit //'); do
@@ -37,30 +71,6 @@ pd_() {
 pp_() {
 	popd "$@" && ls --color=auto -F
 }
-find_git_() {
-	D=.
-	while ! [ -d "$D/.git" ]; do
-		D=$(readlink -f "$D/..")
-		if [ "$D" = "/" ]; then
-			D=
-			return
-		fi
-	done
-}
-get_branch_() {
-	B=
-	find_git_
-	[ "$D" ] || return
-	B=$(git branch 2> /dev/null | grep -F "*" | sed -e s/..// -e 's/(.* //' -e 's/)//')
-}
-select_main_branch_() {
-	for B in dev main master; do
-		if git switch $B 2> /dev/null; then
-			return
-		fi
-	done
-	B=
-}
 rall_() {
 	select_main_branch_
 	[ "$B" ] || return
@@ -71,24 +81,8 @@ rall_() {
 	done
 	git switch $B
 }
-gaca_() {
-	find_git_
-	[ "$D" ] || return
-	git add "$D"
-	git commit --amend
-}
-wip_() {
-	find_git_
-	[ "$D" ] || return
-	git add "$D" && git commit -m WIP
-}
-ephemeral_() {
-	get_branch_
-	[ "$B" = "ephemeral" -o -z "$B" ] && return
-	git checkout -b ephemeral && git add "$D" && git commit -m WIP && git switch $B
-}
 rephemeral_() {
-	B=$(git branch 2> /dev/null | grep -F "*" | sed -e s/..// -e 's/(.* //' -e 's/)//')
+	B=$(git branch 2> /dev/null | grep -F '*' | sed -e s/..// -e 's/(.* //' -e 's/)//')
 	[ "$B" = "ephemeral" ] && return
 	git checkout ephemeral &&
 		git rebase $B &&
@@ -97,8 +91,26 @@ rephemeral_() {
 		git branch -d ephemeral &&
 		git reset HEAD^
 }
+select_main_branch_() {
+	for B in dev main master; do
+		if git switch $B 2> /dev/null; then
+			return
+		fi
+	done
+	B=
+}
 vc_() {
 	vi $(git status -s | grep -E '(U.)|(.U)' | cut -c 4-)
+}
+wip_() {
+	find_git_
+	[ "$D" ] || return
+	git add "$D" && git commit -m WIP
+}
+wiph_() {
+	find_git_
+	[ "$D" ] || return
+	git add . && git commit -m WIP
 }
 
 alias b='cd ..'
@@ -109,6 +121,7 @@ alias gbs='git bisect start && git bisect bad && git bisect good'
 alias gca='git commit --amend'
 alias gcm='git commit -m'
 alias gd='git diff'
+alias gdls=gdls_
 alias gds=gds_
 alias gh='history | grep'
 alias gl='git log --name-status'
@@ -137,3 +150,4 @@ alias rephemeral=rephemeral_
 alias tm='tmux attach || tmux new'
 alias vc=vc_
 alias wip=wip_
+alias wiph=wiph_

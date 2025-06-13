@@ -1,0 +1,27 @@
+[alias]
+	b = branch
+	ff = merge --ff-only
+	last = log --stat -1 HEAD
+	unstage = reset HEAD --
+	x = checkout
+[core]
+	longpaths = true
+	symlinks = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	process = git-lfs filter-process
+	required = true
+	smudge = git-lfs smudge -- %f
+[merge]
+	tool = vsdiffmerge
+[mergetool]
+	prompt = true
+[mergetool "vsdiffmerge"]
+	cmd = \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\TeamFoundation\\Team Explorer\\vsDiffMerge.exe\" \"$REMOTE\" \"$LOCAL\" \"$BASE\" \"$MERGED\" //m
+	keepBackup = false
+	trustExitCode = true
+[user]
+	name = Tenchumaru
+	email = 4085772+Tenchumaru@users.noreply.github.com
+[rerere]
+	enabled = true
